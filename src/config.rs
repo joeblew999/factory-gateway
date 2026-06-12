@@ -67,6 +67,10 @@ pub struct FactoryInfo {
 pub struct OpcUaSettings {
     pub host: String,
     pub port: u16,
+    /// Hostname the server advertises to clients (in its endpoint/discovery URL).
+    /// `127.0.0.1` for local; the service name (e.g. `gateway`) inside Docker so
+    /// edge agents in other containers can reach it.
+    pub endpoint_host: String,
     /// Namespace URI for this factory's machine nodes.
     pub namespace_uri: String,
 }
@@ -76,6 +80,7 @@ impl Default for OpcUaSettings {
         Self {
             host: "0.0.0.0".to_owned(),
             port: 4840,
+            endpoint_host: "127.0.0.1".to_owned(),
             namespace_uri: "http://joeblew999.github.io/factory-floor/".to_owned(),
         }
     }

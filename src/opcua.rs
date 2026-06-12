@@ -70,7 +70,7 @@ pub async fn serve(settings: OpcUaSettings, gw: Arc<Mutex<Gateway>>) -> anyhow::
     };
 
     let app_uri = format!("{}server", settings.namespace_uri);
-    let endpoint = format!("opc.tcp://127.0.0.1:{}/", settings.port);
+    let endpoint = format!("opc.tcp://{}:{}/", settings.endpoint_host, settings.port);
     let (server, handle) = ServerBuilder::new_anonymous("factory-gateway")
         .application_uri(app_uri)
         .product_uri("https://github.com/joeblew999/factory-gateway")
