@@ -77,8 +77,8 @@ impl Gateway {
                 m.jobs.mark_running(&id)?;
                 match m.driver.run_job(&order).await {
                     Ok(()) => {
-                        m.jobs.mark_ended(&id)?;
-                        tracing::info!(machine = %m.spec.id, job = %id, "job ended");
+                        m.jobs.mark_completed(&id)?;
+                        tracing::info!(machine = %m.spec.id, job = %id, "job completed");
                     }
                     Err(e) => {
                         m.jobs.abort(&id)?;

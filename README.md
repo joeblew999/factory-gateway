@@ -31,14 +31,25 @@ Objects/
         ├── MachineryItemState   NotAvailable | OutOfService | NotExecuting | Executing
         ├── Telemetry/         driver-declared, e.g. PiecesProduced · CoilRemaining
         └── JobOrderReceiver   ← OPC UA for ISA-95 Job Control (OPC 10031-4)
-              Store · StoreAndStart · Start · Stop · Cancel · Pause · Resume · Abort · Clear
+              QueueDepth (live)
+              methods: StoreAndStart(JobOrderID, CutListCsv) · Start(JobOrderID) · Abort(JobOrderID) · Clear()
 ```
 
 The gateway builds this `Machines/<id>` subtree for every machine from the driver's
-`descriptor()`, then syncs live `MachineryItemState` + `Telemetry` values into the
-nodes every 500 ms. (The ISA-95 JobOrderReceiver *logic* — store/start/run/end with
-the standard `JobState` lifecycle — is implemented in `jobs.rs`/`gateway.rs`;
-exposing those methods on the OPC-UA address space is the next transport addition.)
+`descriptor()`, then syncs live `MachineryItemState`, `Telemetry`, and `QueueDepth`
+into the nodes every 500 ms.
+
+**Jobs come in the standard way — via the methods.** A MES is an OPC-UA *client*
+that calls `StoreAndStart` on a machine's `JobOrderReceiver` to dispatch work; the
+gateway runs it on the driver and advances the ISA-95 `JobState`
+(`NotAllowedToStart → AllowedToStart → Running → Completed|Aborted`). The full
+receiver method set (`Store`, `RevokeStart`, `Pause`, `Resume`, `Stop`, `Cancel`,
+`Update`) is implemented in [`src/jobs.rs`](src/jobs.rs); the four core ones are
+wired to OPC-UA nodes in [`src/opcua.rs`](src/opcua.rs), and the rest follow the
+identical pattern.
+
+Verified: `factory-gateway --config examples/factory.toml` starts the server,
+builds the address space, and binds `opc.tcp://0.0.0.0:4840/`.
 
 ## Run it
 
