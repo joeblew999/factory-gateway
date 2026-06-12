@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing_subscriber::EnvFilter;
 
-use factory_gateway::{config::FactoryConfig, gateway::Gateway, opcua, registry::DriverRegistry};
+use factory_gateway::{config::FactoryConfig, gateway::Gateway, http, opcua, registry::DriverRegistry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -36,5 +36,7 @@ async fn main() -> anyhow::Result<()> {
     let gateway = Gateway::build(&config, &registry)?;
     let gateway = Arc::new(Mutex::new(gateway));
 
+    // HTTP dashboard + job submit, alongside the OPC-UA server.
+    tokio::spawn(http::run(config.http, gateway.clone()));
     opcua::serve(config.opcua, gateway).await
 }

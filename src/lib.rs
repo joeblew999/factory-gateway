@@ -12,6 +12,7 @@
 
 pub mod config;
 pub mod gateway;
+pub mod http;
 pub mod jobs;
 pub mod opcua;
 pub mod registry;

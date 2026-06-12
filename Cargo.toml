@@ -20,7 +20,7 @@ factory-howick-driver = { git = "https://github.com/joeblew999/factory-howick-dr
 async-opcua = { version = "0.18", features = ["server"] }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
-toml = "0.8"
+toml = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

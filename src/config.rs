@@ -33,8 +33,27 @@ pub struct FactoryConfig {
     pub factory: FactoryInfo,
     #[serde(default)]
     pub opcua: OpcUaSettings,
+    #[serde(default)]
+    pub http: HttpSettings,
     #[serde(default, rename = "machine")]
     pub machines: Vec<MachineSpec>,
+}
+
+/// Operator HTTP dashboard + job-submit endpoint.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct HttpSettings {
+    pub host: String,
+    pub port: u16,
+}
+
+impl Default for HttpSettings {
+    fn default() -> Self {
+        Self {
+            host: "0.0.0.0".to_owned(),
+            port: 4841,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
