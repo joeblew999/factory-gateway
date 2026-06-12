@@ -16,6 +16,9 @@ pub mod jobs;
 pub mod opcua;
 pub mod registry;
 
+#[cfg(test)]
+mod roundtrip;
+
 pub use config::FactoryConfig;
 pub use gateway::Gateway;
 pub use registry::DriverRegistry;

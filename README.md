@@ -48,8 +48,12 @@ receiver method set (`Store`, `RevokeStart`, `Pause`, `Resume`, `Stop`, `Cancel`
 wired to OPC-UA nodes in [`src/opcua.rs`](src/opcua.rs), and the rest follow the
 identical pattern.
 
-Verified: `factory-gateway --config examples/factory.toml` starts the server,
-builds the address space, and binds `opc.tcp://0.0.0.0:4840/`.
+**Verified end-to-end** (`cargo test`, [`src/roundtrip.rs`](src/roundtrip.rs)): an
+OPC-UA *client* connects, calls `StoreAndStart("T1-1", csv)` on
+`Machines/howick-1/JobOrderReceiver`, and the cut-list comes out the other end —
+the driver writes it byte-for-byte to the machine's USB mount. The full path
+(client → OPC-UA method → command queue → scheduler → driver → disk) is exercised
+on the wire, not mocked.
 
 ## Run it
 
