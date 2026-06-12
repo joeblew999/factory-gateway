@@ -1,0 +1,37 @@
+# Example factory config. One file per factory — it IS this factory's OPC-UA
+# Machinery `Machines/` folder, expressed as TOML. Run:
+#   factory-gateway --config examples/factory.toml
+
+[factory]
+id   = "si-racha"
+name = "Prin — Si Racha"
+
+[opcua]
+host = "0.0.0.0"
+port = 4840
+
+# ── A Howick FRAMA roll-former ────────────────────────────────────────────────
+[[machine]]
+id     = "howick-1"
+driver = "howick-frama"
+
+[machine.identification]          # standard OPC-UA Machinery nameplate (OPC 40001-1)
+manufacturer  = "Howick"
+model         = "FRAMA"
+serial_number = "FR-2231"
+device_class  = "RollFormer"
+
+[machine.howick]                  # driver-specific config (parsed by factory-howick-driver)
+usb_mount       = "/mnt/usb_share"
+usb_gadget_mode = true
+coil_sensor     = true
+
+# ── Add more machines here; each picks its driver and carries its own config ──
+# [[machine]]
+# id     = "robot-1"
+# driver = "kuka"
+# [machine.identification]
+# manufacturer = "KUKA"
+# model        = "KR 10"
+# [machine.kuka]
+# endpoint = "opc.tcp://robot-1.local:4840/"
