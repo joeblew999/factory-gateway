@@ -45,6 +45,7 @@ enum Command {
     Start { machine: String, job_id: String },
     Abort { machine: String, job_id: String },
     Clear { machine: String },
+    ReportComplete { machine: String, job_id: String },
 }
 
 /// Which receiver method a node represents.
@@ -54,6 +55,8 @@ enum Method {
     Start,
     Abort,
     Clear,
+    /// Called by an edge agent to report a published job finished.
+    ReportComplete,
 }
 
 type Commands = Arc<StdMutex<Vec<Command>>>;
@@ -170,6 +173,10 @@ fn apply(g: &mut Gateway, cmd: Command) {
             .get_mut(&machine)
             .map(|m| m.jobs.clear_finished())
             .ok_or(machine),
+        Command::ReportComplete { machine, job_id } => {
+            g.report_complete(&machine, &job_id);
+            Ok(())
+        }
     };
     if let Err(machine) = result {
         tracing::warn!(%machine, "job-control command for unknown machine");
@@ -313,6 +320,39 @@ fn build_address_space(
                 .component_of(jor.clone())
                 .insert(&mut *space);
             methods.push((mid.clone(), Method::Clear, n));
+
+            // ReportComplete(JobOrderID) — called by a remote edge agent
+            let n = node(ns, &format!("Machines/{mid}/JobOrderReceiver/ReportComplete"));
+            MethodBuilder::new(&n, "ReportComplete", "ReportComplete")
+                .component_of(jor.clone())
+                .input_args(
+                    &mut *space,
+                    &node(ns, &format!("Machines/{mid}/JobOrderReceiver/ReportComplete/In")),
+                    &[("JobOrderID", DataTypeId::String).into()],
+                )
+                .insert(&mut *space);
+            methods.push((mid.clone(), Method::ReportComplete, n));
+
+            // EdgeAgent/ — the published job a remote agent picks up
+            let edge = node(ns, &format!("Machines/{mid}/EdgeAgent"));
+            space.add_folder(&edge, "EdgeAgent", "EdgeAgent", &m);
+            space.add_variables(
+                vec![
+                    Variable::new(
+                        &node(ns, &format!("Machines/{mid}/EdgeAgent/PendingJobId")),
+                        "PendingJobId",
+                        "PendingJobId",
+                        UAString::from(""),
+                    ),
+                    Variable::new(
+                        &node(ns, &format!("Machines/{mid}/EdgeAgent/PendingJobCsv")),
+                        "PendingJobCsv",
+                        "PendingJobCsv",
+                        UAString::from(""),
+                    ),
+                ],
+                &edge,
+            );
         }
     } // address-space write guard dropped
 
@@ -336,6 +376,10 @@ fn build_address_space(
                 },
                 Method::Clear => Command::Clear {
                     machine: machine.clone(),
+                },
+                Method::ReportComplete => Command::ReportComplete {
+                    machine: machine.clone(),
+                    job_id: str_arg(args, 0)?,
                 },
             };
             commands.lock().unwrap().push(cmd);
@@ -370,6 +414,21 @@ fn collect_updates(ns: u16, gw: &Gateway) -> Vec<Update> {
             node(ns, &format!("Machines/{mid}/JobOrderReceiver/QueueDepth")),
             None,
             DataValue::new_now(m.jobs.queue_depth() as u32),
+        ));
+        // Edge machines: publish the job awaiting the remote agent.
+        let (pending_id, pending_csv) = m
+            .published_job
+            .clone()
+            .unwrap_or_else(|| (String::new(), String::new()));
+        out.push((
+            node(ns, &format!("Machines/{mid}/EdgeAgent/PendingJobId")),
+            None,
+            DataValue::new_now(UAString::from(pending_id)),
+        ));
+        out.push((
+            node(ns, &format!("Machines/{mid}/EdgeAgent/PendingJobCsv")),
+            None,
+            DataValue::new_now(UAString::from(pending_csv)),
         ));
         for (name, value) in &m.telemetry {
             let dv = match value {

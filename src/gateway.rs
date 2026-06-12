@@ -23,6 +23,11 @@ pub struct Machine {
     pub jobs: JobOrderReceiver,
     pub state: MachineryItemState,
     pub telemetry: Telemetry,
+    /// `true` = run by a remote edge agent over OPC-UA (see [`MachineSpec::edge`]).
+    pub edge: bool,
+    /// For edge machines: the job currently published for the agent to pick up,
+    /// as `(job_order_id, payload_utf8)`. `None` when idle.
+    pub published_job: Option<(String, String)>,
 }
 
 /// The per-factory gateway runtime.
@@ -49,6 +54,8 @@ impl Gateway {
                     jobs: JobOrderReceiver::new(),
                     state: MachineryItemState::NotAvailable,
                     telemetry: Telemetry::new(),
+                    edge: spec.edge,
+                    published_job: None,
                 },
             );
         }
@@ -68,10 +75,32 @@ impl Gateway {
         Ok(())
     }
 
-    /// One scheduler pass: for each machine, run its next eligible job, then
-    /// refresh its state + telemetry from the driver.
+    /// One scheduler pass. For **in-process** machines: run the next eligible job
+    /// on the local driver. For **edge** machines: publish the next eligible job
+    /// for the remote agent to pick up (the agent reports back via
+    /// [`Gateway::report_complete`]); never touch the driver locally.
     pub async fn tick(&mut self) -> anyhow::Result<()> {
         for m in self.machines.values_mut() {
+            if m.edge {
+                // Publish the next job for the edge agent (one in flight at a time).
+                if m.published_job.is_none() {
+                    if let Some(order) = m.jobs.next_runnable() {
+                        let id = order.job_order_id.clone();
+                        let csv = String::from_utf8_lossy(order.payload().unwrap_or(&[])).to_string();
+                        m.jobs.mark_running(&id)?;
+                        tracing::info!(machine = %m.spec.id, job = %id, "published to edge agent");
+                        m.published_job = Some((id, csv));
+                    }
+                }
+                m.state = if m.published_job.is_some() {
+                    MachineryItemState::Executing
+                } else {
+                    MachineryItemState::NotExecuting
+                };
+                continue; // telemetry for edge machines is reported by the agent
+            }
+
+            // In-process machine.
             if let Some(order) = m.jobs.next_runnable() {
                 let id = order.job_order_id.clone();
                 m.jobs.mark_running(&id)?;
@@ -90,6 +119,25 @@ impl Gateway {
             m.telemetry = m.driver.poll_telemetry().await.unwrap_or_default();
         }
         Ok(())
+    }
+
+    /// An edge agent reports a published job finished. Marks it completed and
+    /// clears the published slot so the next job can be dispatched.
+    pub fn report_complete(&mut self, machine_id: &str, job_order_id: &str) {
+        if let Some(m) = self.machines.get_mut(machine_id) {
+            let _ = m.jobs.mark_completed(job_order_id);
+            if m.published_job.as_ref().map(|(id, _)| id == job_order_id).unwrap_or(false) {
+                m.published_job = None;
+            }
+            tracing::info!(machine = %machine_id, job = %job_order_id, "edge agent reported complete");
+        }
+    }
+
+    /// An edge agent reports telemetry for its machine.
+    pub fn report_telemetry(&mut self, machine_id: &str, telemetry: Telemetry) {
+        if let Some(m) = self.machines.get_mut(machine_id) {
+            m.telemetry = telemetry;
+        }
     }
 }
 

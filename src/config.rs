@@ -72,6 +72,14 @@ pub struct MachineSpec {
     /// Standard OPC-UA Machinery nameplate.
     #[serde(default)]
     pub identification: Identification,
+    /// `true` = this machine is run by a remote **edge agent** (a separate
+    /// process physically wired to it) that connects to the gateway over OPC-UA.
+    /// The gateway publishes jobs for it and waits for the agent to report back,
+    /// rather than running the driver in-process. This is the real factory-floor
+    /// topology for distributed machines. `false` = run the driver in-process
+    /// (fine for a single co-located machine).
+    #[serde(default)]
+    pub edge: bool,
     /// Any remaining `[machine.<key>]` tables — driver-specific config, opaque here.
     #[serde(flatten)]
     pub extra: toml::Table,
