@@ -1,5 +1,7 @@
 # factory-gateway
 
+<https://github.com/joeblew999/factory-gateway>
+
 The generic **OPC-UA gateway** for factory-floor automation: one server that
 aggregates many machines under `/Machines/<id>`, holds the job queue, serves the
 operator dashboard, and exposes everything northbound to SCADA. Knows nothing
