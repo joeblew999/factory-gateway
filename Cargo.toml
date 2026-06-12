@@ -1,7 +1,7 @@
 [package]
 name = "factory-gateway"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Generic OPC-UA gateway — exposes a factory's machines as a standard OPC UA for Machinery + ISA-95 Job Control address space"
 repository = "https://github.com/joeblew999/factory-gateway"

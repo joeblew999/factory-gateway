@@ -83,14 +83,14 @@ impl Gateway {
         for m in self.machines.values_mut() {
             if m.edge {
                 // Publish the next job for the edge agent (one in flight at a time).
-                if m.published_job.is_none() {
-                    if let Some(order) = m.jobs.next_runnable() {
-                        let id = order.job_order_id.clone();
-                        let csv = String::from_utf8_lossy(order.payload().unwrap_or(&[])).to_string();
-                        m.jobs.mark_running(&id)?;
-                        tracing::info!(machine = %m.spec.id, job = %id, "published to edge agent");
-                        m.published_job = Some((id, csv));
-                    }
+                if m.published_job.is_none()
+                    && let Some(order) = m.jobs.next_runnable()
+                {
+                    let id = order.job_order_id.clone();
+                    let csv = String::from_utf8_lossy(order.payload().unwrap_or(&[])).to_string();
+                    m.jobs.mark_running(&id)?;
+                    tracing::info!(machine = %m.spec.id, job = %id, "published to edge agent");
+                    m.published_job = Some((id, csv));
                 }
                 m.state = if m.published_job.is_some() {
                     MachineryItemState::Executing
